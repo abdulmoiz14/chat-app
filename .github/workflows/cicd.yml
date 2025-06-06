@@ -51,7 +51,7 @@ jobs:
             --comment "GitHub Actions Deployment via SSM" \
             --parameters 'commands=[
               "cd /home/ubuntu/chat-app",
-              "git pull origin stage",
+              "git pull origin main",
               "docker-compose down",
               "docker-compose up -d --build"
             ]' \
