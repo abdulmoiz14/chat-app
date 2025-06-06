@@ -1,0 +1,44 @@
+name: Deploy to Stage
+
+on:
+  push:
+    branches:
+      - stage
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build Containers
+        run: docker-compose build
+
+      - name: 💡 Backend Health Check
+        run: |
+          docker-compose up -d mongo backend
+          sleep 10
+          curl --fail http://localhost:5000/api/health
+
+      - name: 💡 Frontend Health Check
+        run: |
+          docker-compose up -d frontend
+          sleep 10
+          curl --fail http://localhost:3000 | grep Welcome
+
+      - name: 🧪 SSH & Deploy to Stage Server
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.STAGE_HOST }}
+          username: ${{ secrets.STAGE_USER }}
+          key: ${{ secrets.STAGE_SSH_KEY }}
+          script: |
+            cd /home/ubuntu/chat-app
+            git pull origin stage
+            docker-compose down
+            docker-compose up -d --build
