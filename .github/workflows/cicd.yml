@@ -1,0 +1,58 @@
+name: Deploy to main
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v2
+
+      - name: Install Docker Compose
+        run: |
+          sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          sudo chmod +x /usr/local/bin/docker-compose
+          docker-compose --version
+
+      - name: Build Containers
+        run: docker-compose build
+
+      - name: Backend Health Check
+        run: |
+          docker-compose up -d mongo backend
+          sleep 10
+          curl --fail http://localhost:5000/api/auth/health
+
+      - name: Frontend Health Check
+        run: |
+          docker-compose up -d frontend
+          sleep 10
+          curl --fail http://localhost:3000
+
+      - name: Deploy to Stage via AWS SSM
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          SSM_INSTANCE_ID: ${{ secrets.SSM_INSTANCE_ID }}
+        run: |
+          aws ssm send-command \
+            --document-name "AWS-RunShellScript" \
+            --instance-ids "$SSM_INSTANCE_ID" \
+            --region "$AWS_REGION" \
+            --comment "GitHub Actions Deployment via SSM" \
+            --parameters 'commands=[
+              "cd /home/ubuntu/chat-app",
+              "git pull origin stage",
+              "docker-compose down",
+              "docker-compose up -d --build"
+            ]' \
+            --output text
