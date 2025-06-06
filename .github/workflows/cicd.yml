@@ -29,7 +29,7 @@ jobs:
         run: |
           docker-compose up -d mongo backend
           sleep 10
-          curl --fail http://localhost:5000
+          curl --fail http://localhost:5000/health
 
       - name: 💡 Frontend Health Check
         run: |
