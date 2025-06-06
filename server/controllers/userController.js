@@ -87,3 +87,4 @@ module.exports.logOut = (req, res, next) => {
 module.exports.healthCheck = (req, res) => {
   res.status(200).send("OK");
 };
+
